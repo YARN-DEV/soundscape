@@ -64,10 +64,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       
       audioRef.current.src = track.audioUrl
-      audioRef.current.play()
       setCurrentTrack(track)
       setIsPlaying(true)
       setHasLoggedPlay(false) // Reset play tracking for new track
+      
+      // Handle play promise
+      const playPromise = audioRef.current.play()
+      if (playPromise !== undefined) {
+        playPromise
+          .catch(error => {
+            // Handle AbortError gracefully
+            if (error.name !== 'AbortError') {
+              console.error('Play error:', error)
+            }
+          })
+      }
     }
   }, [currentTrack])
 
@@ -80,8 +91,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const resume = useCallback(() => {
     if (audioRef.current) {
-      audioRef.current.play()
       setIsPlaying(true)
+      const playPromise = audioRef.current.play()
+      if (playPromise !== undefined) {
+        playPromise
+          .catch(error => {
+            // Handle AbortError gracefully
+            if (error.name !== 'AbortError') {
+              console.error('Resume error:', error)
+            }
+          })
+      }
     }
   }, [])
 
@@ -161,7 +181,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [volume, handleTrackEnd])
 
-  const skipPrevious = () => {
+  const skipPrevious = useCallback(() => {
     if (audioRef.current) {
       // If more than 3 seconds in, restart current track
       if (currentTime > 3) {
@@ -182,51 +202,51 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         playTrack(previousTrack)
       }
     }
-  }
+  }, [currentTime, playHistory, currentTrack, queue, playTrack])
 
-  const setVolume = (newVolume: number) => {
+  const setVolume = useCallback((newVolume: number) => {
     if (audioRef.current) {
       audioRef.current.volume = newVolume
       setVolumeState(newVolume)
     }
-  }
+  }, [])
 
-  const seek = (time: number) => {
+  const seek = useCallback((time: number) => {
     if (audioRef.current) {
       audioRef.current.currentTime = time
       setCurrentTime(time)
     }
-  }
+  }, [])
 
-  const addToQueue = (track: Track) => {
+  const addToQueue = useCallback((track: Track) => {
     setQueue([...queue, track])
-  }
+  }, [queue])
 
-  const removeFromQueue = (index: number) => {
+  const removeFromQueue = useCallback((index: number) => {
     setQueue(queue.filter((_, i) => i !== index))
-  }
+  }, [queue])
 
-  const reorderQueue = (fromIndex: number, toIndex: number) => {
+  const reorderQueue = useCallback((fromIndex: number, toIndex: number) => {
     const newQueue = [...queue]
     const [removed] = newQueue.splice(fromIndex, 1)
     newQueue.splice(toIndex, 0, removed)
     setQueue(newQueue)
-  }
+  }, [queue])
 
-  const clearQueue = () => {
+  const clearQueue = useCallback(() => {
     setQueue([])
-  }
+  }, [])
 
-  const toggleShuffle = () => {
+  const toggleShuffle = useCallback(() => {
     setShuffle(!shuffle)
-  }
+  }, [shuffle])
 
-  const toggleRepeat = () => {
+  const toggleRepeat = useCallback(() => {
     const modes: RepeatMode[] = ['off', 'all', 'one']
     const currentIndex = modes.indexOf(repeatMode)
     const nextIndex = (currentIndex + 1) % modes.length
     setRepeatMode(modes[nextIndex])
-  }
+  }, [repeatMode])
 
   // Track listen progress and log play at 30% threshold
   useEffect(() => {
@@ -307,7 +327,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [isPlaying, currentTrack, currentTime, duration, volume])
+  }, [isPlaying, currentTrack, currentTime, duration, volume, pause, resume, seek, setVolume])
 
   return (
     <PlayerContext.Provider

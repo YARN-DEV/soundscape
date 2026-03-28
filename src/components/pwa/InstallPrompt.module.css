@@ -1,0 +1,135 @@
+.container {
+  position: fixed;
+  bottom: 80px;
+  left: 16px;
+  right: 16px;
+  z-index: 40;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+  animation: slideUp 0.3s ease-out;
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(74, 222, 128, 0.1);
+}
+
+.icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(74, 222, 128, 0.1);
+  border-radius: 8px;
+  color: #4ade80;
+}
+
+.text {
+  flex: 1;
+}
+
+.text h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.text p {
+  margin: 0;
+  font-size: 13px;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.installBtn {
+  padding: 8px 16px;
+  background: #4ade80;
+  color: #0f172a;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.installBtn:hover {
+  background: #22c55e;
+  transform: translateY(-1px);
+}
+
+.installBtn:active {
+  transform: translateY(0);
+}
+
+.dismissBtn {
+  padding: 8px;
+  background: transparent;
+  border: 1px solid rgba(100, 116, 139, 0.5);
+  color: #94a3b8;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.dismissBtn:hover {
+  background: rgba(100, 116, 139, 0.1);
+  color: #cbd5e1;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    left: 12px;
+    right: 12px;
+    bottom: 76px;
+  }
+
+  .content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .text {
+    padding: 0 4px;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .installBtn {
+    flex: 1;
+  }
+}

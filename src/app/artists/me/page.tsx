@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { apiClient } from '@/lib/api-client'
 import Image from 'next/image'
 import Link from 'next/link'
+import { Modal } from '@/components/ui/Modal'
+import { ArtistUploadForm } from '@/components/upload/ArtistUploadForm'
 
 interface Artist {
   id: string
@@ -54,6 +56,7 @@ export default function ArtistDashboard() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [artist, setArtist] = useState<Artist | null>(null)
   const [hasProfile, setHasProfile] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -76,23 +79,39 @@ export default function ArtistDashboard() {
     websiteUrl: ''
   })
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [creatingProfile, setCreatingProfile] = useState(false)
+  const [newArtistName, setNewArtistName] = useState('')
+  const [createMessage, setCreateMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-      
-      fetchArtistData()
+  async function createArtistProfile() {
+    if (!newArtistName.trim()) {
+      setCreateMessage({ type: 'error', text: 'Please enter your artist name' })
+      return
     }
-  }, [user, authLoading, router])
 
-  const fetchArtistData = async () => {
+    setCreatingProfile(true)
+    try {
+      const response = await apiClient.post<{ artist: Artist; message: string }>('/api/artists/me', { name: newArtistName.trim() })
+      setArtist(response.artist)
+      setHasProfile(true)
+      setCreateMessage({ type: 'success', text: 'Artist profile created! Refreshing...' })
+      setNewArtistName('')
+      setTimeout(() => fetchArtistData(), 1000)
+    } catch (error) {
+      setCreateMessage({ 
+        type: 'error', 
+        text: error instanceof Error ? error.message : 'Failed to create artist profile' 
+      })
+    } finally {
+      setCreatingProfile(false)
+    }
+  }
+
+  async function fetchArtistData() {
     try {
       const artistData = await apiClient.get<{ artist: Artist; hasProfile: boolean }>('/api/artists/me')
       setArtist(artistData.artist)
-      setHasProfile(artistData.hasProfile)
+      setHasProfile(true)
       
       // Set edit form with current values
       setEditForm({
@@ -116,15 +135,31 @@ export default function ArtistDashboard() {
       const playlistsData = await apiClient.get<{ playlists: PlaylistInclusion[]; totalPlaylists: number; totalInclusions: number }>('/api/artists/me/playlists')
       setPlaylists(playlistsData.playlists)
       setPlaylistStats({ totalPlaylists: playlistsData.totalPlaylists, totalInclusions: playlistsData.totalInclusions })
-    } catch (error: any) {
-      if (error.status === 404) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch artist data'
+      
+      // If no artist profile exists, show the creation form
+      if (errorMessage.includes('Artist profile not found')) {
         setHasProfile(false)
+      } else {
+        console.error('Failed to fetch artist data:', error)
       }
-      console.error('Failed to fetch artist data:', error)
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        router.push('/auth/login')
+        return
+      }
+      
+      fetchArtistData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading])
 
   const handleSaveProfile = async () => {
     try {
@@ -163,11 +198,42 @@ export default function ArtistDashboard() {
           <svg className="w-20 h-20 mx-auto mb-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
-          <h2 className="text-2xl font-bold mb-4">No Artist Profile</h2>
-          <p className="text-gray-400 mb-6">You don't have an artist profile yet. Contact an admin to set up your artist account.</p>
+          <h2 className="text-2xl font-bold mb-4">Create Your Artist Profile</h2>
+          <p className="text-gray-400 mb-6">Get started by creating your artist profile so you can upload tracks and build your audience.</p>
+          
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Your Artist Name"
+              value={newArtistName}
+              onChange={(e) => setNewArtistName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && createArtistProfile()}
+              disabled={creatingProfile}
+              className="w-full px-4 py-3 bg-gray-900 text-white border border-gray-700 rounded-lg focus:outline-none focus:border-[#00d9ff] disabled:opacity-50"
+            />
+          </div>
+
+          {createMessage && (
+            <div className={`mb-4 p-3 rounded-lg text-sm ${
+              createMessage.type === 'success' 
+                ? 'bg-green-900 text-green-200' 
+                : 'bg-red-900 text-red-200'
+            }`}>
+              {createMessage.text}
+            </div>
+          )}
+
+          <button
+            onClick={createArtistProfile}
+            disabled={creatingProfile}
+            className="w-full px-6 py-3 bg-[#00d9ff] hover:bg-[#00c4e6] disabled:bg-gray-600 text-black font-semibold rounded-lg transition-colors"
+          >
+            {creatingProfile ? 'Creating...' : 'Create Artist Profile'}
+          </button>
+
           <Link
             href="/"
-            className="inline-block px-6 py-3 bg-[#00d9ff] hover:bg-[#00c4e6] text-black font-semibold rounded-lg transition-colors"
+            className="inline-block mt-4 px-6 py-3 text-gray-400 hover:text-white transition-colors"
           >
             Back to Home
           </Link>
@@ -196,11 +262,28 @@ export default function ArtistDashboard() {
             <div>
               <p className="text-sm text-gray-400 mb-2">ARTIST</p>
               <h1 className="text-5xl font-bold mb-3">{artist?.name}</h1>
-              <div className="flex items-center gap-6 text-sm">
+              <div className="flex items-center gap-6 text-sm mb-4">
                 <span className="text-gray-300">{artist?._count.tracks} tracks</span>
                 <span className="text-gray-300">{artist?._count.followers.toLocaleString()} followers</span>
                 <span className="text-gray-300">{trackStats.totalPlays.toLocaleString()} total plays</span>
               </div>
+              <Link
+                href="/me"
+                className="inline-block px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-colors"
+              >
+                Back to Profile
+              </Link>
+            </div>
+            <div className="ml-auto">
+              <button
+                onClick={() => setIsUploadModalOpen(true)}
+                className="bg-[#00d9ff] hover:bg-[#00b8cc] text-black font-bold py-3 px-8 rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Upload Song
+              </button>
             </div>
           </div>
         </div>
@@ -369,14 +452,25 @@ export default function ArtistDashboard() {
         {/* Tracks Tab */}
         {activeTab === 'tracks' && (
           <div className="py-8">
-            <h2 className="text-2xl font-bold mb-6">All Tracks</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">All Tracks</h2>
+              <button
+                onClick={() => setIsUploadModalOpen(true)}
+                className="bg-[#00d9ff] hover:bg-[#00b8cc] text-black font-semibold py-2 px-6 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Upload Track
+              </button>
+            </div>
             {tracks.length === 0 ? (
               <div className="text-center py-16 bg-[#1a1a1a] border border-gray-800 rounded-lg">
                 <svg className="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                 </svg>
                 <h3 className="text-xl font-semibold text-gray-400 mb-2">No tracks yet</h3>
-                <p className="text-gray-500">Your tracks will appear here once they're uploaded.</p>
+                <p className="text-gray-500">Your tracks will appear here once they&rsquo;re uploaded.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
@@ -399,7 +493,6 @@ export default function ArtistDashboard() {
                         <div className="flex items-center gap-4 text-sm text-gray-400">
                           {track.album && <span>{track.album.title}</span>}
                           <span>{formatDuration(track.duration)}</span>
-                          {track.explicit && <span className="text-xs px-2 py-0.5 bg-gray-700 rounded">EXPLICIT</span>}
                         </div>
                       </div>
                       <div className="text-right">
@@ -671,6 +764,18 @@ export default function ArtistDashboard() {
           </div>
         )}
       </div>
+
+      {/* Upload Modal */}
+      <Modal 
+        isOpen={isUploadModalOpen} 
+        onClose={() => setIsUploadModalOpen(false)}
+        title="Upload Track"
+      >
+        <ArtistUploadForm onSuccessAction={() => {
+          setIsUploadModalOpen(false)
+          fetchArtistData()
+        }} />
+      </Modal>
     </div>
   )
 }

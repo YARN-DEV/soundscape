@@ -7,10 +7,6 @@ import Link from 'next/link'
 import { apiClient } from '@/lib/api-client'
 import TrackList from '@/components/tracks/TrackList'
 
-interface LikedTrack {
-  track: Track
-}
-
 interface Track {
   id: string
   title: string
@@ -19,7 +15,7 @@ interface Track {
     id: string
     name: string
   }
-  album?: {
+  album: {
     id: string
     title: string
   } | null
@@ -82,8 +78,8 @@ export default function ProfilePage() {
   const fetchAllData = useCallback(async () => {
     try {
       // Fetch liked tracks
-      const liked = await apiClient.get<LikedTrack[]>('/api/me/liked')
-      setLikedTracks(liked.map(lt => lt.track))
+      const likedResponse = await apiClient.get<{ tracks: Track[] }>('/api/me/liked')
+      setLikedTracks(likedResponse.tracks)
 
       // Fetch recently played
       const recent = await apiClient.get<Track[]>('/api/me/recently-played')
@@ -182,7 +178,13 @@ export default function ProfilePage() {
             <div className="flex-1 pb-4">
               <p className="text-sm font-semibold text-[#00d9ff] mb-2">PROFILE</p>
               <h1 className="text-6xl font-bold text-white mb-4">{user.name || 'User'}</h1>
-              <p className="text-gray-300">{user.email}</p>
+              <p className="text-gray-300 mb-4">{user.email}</p>
+              <Link
+                href="/artists/me"
+                className="inline-block px-6 py-2 bg-[#00d9ff] hover:bg-[#00b8cc] text-black font-semibold rounded-lg transition-colors"
+              >
+                Go to Artist Profile
+              </Link>
             </div>
           </div>
         </div>
